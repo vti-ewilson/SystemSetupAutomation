@@ -20,59 +20,52 @@ namespace SystemSetupAutomation
 
 		private void Form1_Load(object sender, EventArgs e)
 		{
+			for(int i = 0; i < checkedListBox1.Items.Count; i++){
+				checkedListBox1.SetItemChecked(i, true);
+			}
 			UpdateDescription();
 			UpdateScript();
 		}
 
 		private void UpdateDescription()
 		{
-			if(ethButton.Checked)
-			{
-				InstructionBox.Text = "- Run Powershell as Administrator then paste in this script";
-			}
-			else
-			{
-				InstructionBox.Text = "- Copy over SSH folder manually\r\n\r\n- Run Powershell as Administrator then paste in this script";
-			}
+			InstructionBox.Text = " - Run Powershell as Administrator then paste in this script";
 		}
 
 		private void UpdateScript()
 		{
-			string script;
-			if(ethButton.Checked)
+			string script = "";
+
+			// Set Static IP for PLC
+			if(checkedListBox1.GetItemChecked(0))
 			{
-				script = File.ReadAllText(@"../../scripts/setup.ps1");
+				script += File.ReadAllText(@"../../scripts/SetStaticIP.ps1");
+			}
+
+			// Copy SSH keys
+			if(checkedListBox1.GetItemChecked(1))
+			{
+				script += File.ReadAllText(@"../../scripts/CopySSHKeys.ps1");
 				script = script.Replace("{SSHFOLDER}", sshFolderBox.Text);
 			}
-			else
-			{
-				script = File.ReadAllText(@"../../scripts/setup_wifi.ps1");
-			}
+
+			// Clone Repo
+			script += File.ReadAllText(@"../../scripts/Clone.ps1");
 			script = script.Replace("{GITLINK}", gitLinkBox.Text);
-			ScriptBox.Text = script;
+
+			// Copy Config Folder
+			if(checkedListBox1.GetItemChecked(2))
+			{
+				script += File.ReadAllText(@"../../scripts/CopyConfig.ps1");
+			}
+
+			// Open sln and ckp
+			script += File.ReadAllText(@"../../scripts/Open.ps1");
+
+			ScriptBox.Text = script.Trim();
 		}
 
-		private void radioButton1_CheckedChanged(object sender, EventArgs e)
-		{
-			if(ethButton.Checked)
-			{
-				sshFolderLabel.Visible = true;
-				sshFolderBox.Visible = true;
-			}
-			else
-			{
-				sshFolderLabel.Visible = false;
-				sshFolderBox.Visible = false;
-			}
-			UpdateDescription();
-			UpdateScript();
-		}
-
-		private void radioButton2_CheckedChanged(object sender, EventArgs e)
-		{
-			UpdateDescription();
-			UpdateScript();
-		}
+		
 
 		private void textBox1_TextChanged(object sender, EventArgs e)
 		{
@@ -84,6 +77,27 @@ namespace SystemSetupAutomation
 			UpdateScript();
 		}
 
-		
+		private void copyButton_Click(object sender, EventArgs e)
+		{
+			Clipboard.SetText(ScriptBox.Text);
+		}
+
+		private void checkedListBox1_ItemCheck(object sender, ItemCheckEventArgs e)
+		{
+			if(e.Index == 1)
+			{
+				if(e.NewValue == CheckState.Checked)
+				{
+					sshFolderBox.Visible = true;
+					sshFolderLabel.Visible = true;
+				}
+				else
+				{
+					sshFolderBox.Visible = false;
+					sshFolderLabel.Visible = false;
+				}
+			}
+			this.BeginInvoke((MethodInvoker)(() => UpdateScript())); // delay UpdateScript because this event executes before item state change
+		}
 	}
 }

@@ -1,23 +1,6 @@
-$gitLink = "{GITLINK}"
+#SSH KEYS
+
 $sourceFolder = "{SSHFOLDER}"
-
-
-try{
-	$netAdapters = Get-NetAdapter -Physical | Where-Object {$_.Status -eq 'Up' -and $_.Name -notlike "Wi-Fi*"}
-	$dnsClient = $netAdapters | Get-DnsClient | Where-Object {$_.ConnectionSpecificSuffix -ne 'vti.local'} | select -last 1
-	New-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $dnsClient.InterfaceIndex -IPAddress 192.168.0.7 -PrefixLength 16
-} catch {
-	Write-Host "Failed to set static IP for PLC ethernet adapter. Error: $_"
-}
-
-
-$destinationFolder = "C:\Users\VTI\.ssh"
-$sourceCredential = Get-Credential -Message "Enter credentials for the source folder"
-$sourceUsername = $sourceCredential.UserName
-$sourcePassword = $sourceCredential.GetNetworkCredential().Password
-
-$net = new-object -ComObject WScript.Network
-$net.MapNetworkDrive("Z:", $sourceFolder, $false, $sourceUsername, $sourcePassword)
 
 if(Test-Path "Z:\"){
     Copy-Item "Z:\*" -Destination $destinationFolder -Recurse -Force
@@ -28,6 +11,29 @@ if(Test-Path "Z:\"){
     Write-Error "Failed to connect to source folder."
 }
 
+$destinationFolder = "C:\Users\VTI\.ssh"
+$sourceCredential = Get-Credential -Message "Enter credentials for the source folder"
+$sourceUsername = $sourceCredential.UserName
+$sourcePassword = $sourceCredential.GetNetworkCredential().Password
+
+$net = new-object -ComObject WScript.Network
+$net.MapNetworkDrive("Z:", $sourceFolder, $false, $sourceUsername, $sourcePassword)
+
+
+#STATIC IP
+
+try{
+	$netAdapters = Get-NetAdapter -Physical | Where-Object {$_.Status -eq 'Up' -and $_.Name -notlike "Wi-Fi*"}
+	$dnsClient = $netAdapters | Get-DnsClient | Where-Object {$_.ConnectionSpecificSuffix -ne 'vti.local'} | select -last 1
+	New-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $dnsClient.InterfaceIndex -IPAddress 192.168.0.7 -PrefixLength 16
+} catch {
+	Write-Host "Failed to set static IP for PLC ethernet adapter. Error: $_"
+}
+
+
+#CLONE
+
+$gitLink = "{GITLINK}"
 
 # Change directory to the desired location
 Set-Location "C:\VTI PC\System Software"
@@ -41,9 +47,25 @@ catch {
     exit 1
 }
 
-$slnFile = gci ./*.sln -Recurse | Where-Object {$_.Name -ne 'VTIWindowsControlLibrary.sln' -and $_.Name -ne 'VtiMccInterface.sln'} | sort LastWriteTime | select -last 1
+$answer = (Read-Host 'Copy Config Folder? (y/n):')
+if ($answer -eq 'y'){
+	try {
+	   $configFolder = gi ./Config
+	   cp -r -force $configFolder "C:\VTI PC\"
+	}
+	catch {
+	    Write-Host "Failed to copy config folder. Error: $_"
+	    Read-Host "Press Enter to continue..."
+	}
+}
 
-Start-Process $slnFile.Fullname
+
+
+$slnFile = gci ./*.sln -Recurse | Where-Object {$_.Name -notlike 'VTIWindowsControlLibrary' -and $_.Name -notlike 'VtiMccInterface'} | sort LastWriteTime | select -last 1
+
+$vsPath = cmd /c "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -property productPath
+
+Start-Process $vsPath -ArgumentList $slnFile.Fullname
 explorer $slnFile.Directory
 
 $ckpFile = gci ./*.ckp -Recurse | sort LastWriteTime | select -last 1

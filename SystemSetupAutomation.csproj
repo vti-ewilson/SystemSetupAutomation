@@ -88,6 +88,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icon1.ico" />
+    <None Include="Resources\copyIcon.ico" />
+    <None Include="Resources\copyImage.png" />
     <Content Include="setupicon.ico" />
     <None Include="Resources\setupicon.ico" />
   </ItemGroup>
