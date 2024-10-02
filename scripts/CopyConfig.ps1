@@ -1,7 +1,7 @@
 
 
 try {
-   $configFolder = gi ./Config
+   $configFolder = ls Config -Recurse -Directory | select -last 1
    cp -r -force $configFolder "C:\VTI PC\"
 }
 catch {

@@ -1,6 +1,13 @@
 #SSH KEYS
 
 $sourceFolder = "{SSHFOLDER}"
+$destinationFolder = "C:\Users\VTI\.ssh"
+$sourceCredential = Get-Credential -Message "Enter credentials for the source folder"
+$sourceUsername = $sourceCredential.UserName
+$sourcePassword = $sourceCredential.GetNetworkCredential().Password
+
+$net = new-object -ComObject WScript.Network
+$net.MapNetworkDrive("Z:", $sourceFolder, $false, $sourceUsername, $sourcePassword)
 
 if(Test-Path "Z:\"){
     Copy-Item "Z:\*" -Destination $destinationFolder -Recurse -Force
@@ -10,14 +17,6 @@ if(Test-Path "Z:\"){
 } else {
     Write-Error "Failed to connect to source folder."
 }
-
-$destinationFolder = "C:\Users\VTI\.ssh"
-$sourceCredential = Get-Credential -Message "Enter credentials for the source folder"
-$sourceUsername = $sourceCredential.UserName
-$sourcePassword = $sourceCredential.GetNetworkCredential().Password
-
-$net = new-object -ComObject WScript.Network
-$net.MapNetworkDrive("Z:", $sourceFolder, $false, $sourceUsername, $sourcePassword)
 
 
 #STATIC IP
@@ -47,30 +46,31 @@ catch {
     exit 1
 }
 
-$answer = (Read-Host 'Copy Config Folder? (y/n):')
-if ($answer -eq 'y'){
-	try {
-	   $configFolder = gi ./Config
-	   cp -r -force $configFolder "C:\VTI PC\"
-	}
-	catch {
-	    Write-Host "Failed to copy config folder. Error: $_"
-	    Read-Host "Press Enter to continue..."
-	}
+try {
+   $configFolder = ls Config -Recurse -Directory | select -last 1
+   cp -r -force $configFolder "C:\VTI PC\"
+}
+catch {
+    Write-Host "Failed to copy config folder. Error: $_"
+    Read-Host "Press Enter to continue..."
 }
 
+$slnFile = gci ./*.sln -Recurse | Where-Object {$_.Name -notlike '*VTIWindowsControlLibrary*' -and $_.Name -notlike '*VtiMccInterface*'} | sort LastWriteTime | select -last 1
 
-
-$slnFile = gci ./*.sln -Recurse | Where-Object {$_.Name -notlike 'VTIWindowsControlLibrary' -and $_.Name -notlike 'VtiMccInterface'} | sort LastWriteTime | select -last 1
+Set-Location $slnFile.Directory
 
 $vsPath = cmd /c "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -property productPath
 
-Start-Process $vsPath -ArgumentList $slnFile.Fullname
+Start-Process $vsPath -ArgumentList $slnFile.Name
 explorer $slnFile.Directory
 
-$ckpFile = gci ./*.ckp -Recurse | sort LastWriteTime | select -last 1
+try {
+   $ckpFile = gci ./*.ckp -Recurse | sort LastWriteTime | select -last 1
+   Start-Process $ckpFile.Fullname
+}
+catch {
 
-Start-Process $ckpFile.Fullname
+}
 
 # Pause before closing
 Read-Host "Press Enter to exit..."
